@@ -1,0 +1,6 @@
+scenario,run,detector,ttd_s,accepted
+s7_slow_burn,s7_slow_burn__static1__r2,google_x60_class,8.0,True
+s7_slow_burn,s7_slow_burn__static1__r2,google_x60_request,8.0,True
+s7_slow_burn,s7_slow_burn__static1__r2,google_x60_token,21.0,True
+s7_slow_burn,s7_slow_burn__static1__r2,tuned_token,8.0,True
+s7_slow_burn,s7_slow_burn__static1__r23,tuned_class,27.0,False

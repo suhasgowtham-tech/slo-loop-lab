@@ -1,0 +1,7 @@
+scope,pair,pairs,cpu_less,cpu_more,ties,share_less,p_sign,min_p_possible,replica_diff,rule_met
+registered rule: reps 1-5 (includes the 3 reps that suggested it),cpu vs queue,10/10,10,0,0,1.0,0.001953125,0.001953125,1.431628489919817,True
+registered rule: reps 1-5 (includes the 3 reps that suggested it),cpu vs burn,10/10,8,1,1,0.8888888888888888,0.0390625,0.00390625,0.9813257958396644,True
+"registered rule, without accepted",cpu vs queue,10/10,10,0,0,1.0,0.001953125,0.001953125,1.431628489919817,True
+"registered rule, without accepted",cpu vs burn,10/10,8,1,1,0.8888888888888888,0.0390625,0.00390625,0.9813257958396644,True
+fresh reps 4+ only,cpu vs queue,6/6,6,0,0,1.0,0.03125,0.03125,1.499614640136346,True
+fresh reps 4+ only,cpu vs burn,6/6,4,1,1,0.8,0.375,0.0625,1.0095050866404955,False

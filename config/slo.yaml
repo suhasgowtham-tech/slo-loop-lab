@@ -1,0 +1,25 @@
+# Written by `make calibrate`.
+slo:
+  calibrated: true
+  target: 0.99
+  request_timeout_s: 60
+  ttft_s:
+    short: 10.4
+    medium: 15.6
+    long: 16.3
+  calibration:
+    duration_s: 1202.0
+    headroom_x: 1.5
+    per_class:
+      short:
+        n_ok: 129
+        p99: 6.933
+        p50: 0.539
+      medium:
+        n_ok: 64
+        p99: 10.393
+        p50: 1.583
+      long:
+        n_ok: 27
+        p99: 10.83
+        p50: 3.76

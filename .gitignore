@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+models/*.gguf
+models/*.part
+platform/.kind-config.generated.yaml
+config/capabilities.yaml
+results/runs/
+results/*.png
+*.log
+.lab-verified
+results/capacity/
+results/diag-*.txt
+results/calibration/
+results-share-*.zip
+config/autoscaling.yaml
+results/hostlog.csv
+
+# everything the lab generates stays local
+results/*
+!results/.gitkeep

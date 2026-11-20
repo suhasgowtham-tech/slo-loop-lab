@@ -1,0 +1,67 @@
+# Chart defaults. config/slo.yaml (-f) supplies/overrides `.Values.slo`; config/images.yaml (optional,
+# written by `make pin-images`) overrides `images.llm.digest`.
+images:
+  gateway:   {repository: slo-loop/gateway,   tag: "0.2.0", digest: "", pullPolicy: IfNotPresent}   # built locally, loaded into kind (scripts/05-build-images.sh)
+  retriever: {repository: slo-loop/retriever, tag: "0.2.0", digest: "", pullPolicy: IfNotPresent}
+  llm:       {repository: ghcr.io/ggml-org/llama.cpp, tag: server, digest: "", pullPolicy: IfNotPresent}
+
+llm:
+  modelFile: Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+  modelHostPath: /models               # directory INSIDE the kind node (mounted from ./models by platform/kind-config.yaml.tmpl)
+  ctxSize: 8192                        # total; llama-server splits it across `parallel` slots (4096 per slot). KV cache for this 0.5B model is ~12 KB/token => ~100 MB
+  parallel: 2                          # concurrent requests per replica; extra requests queue inside llama.cpp
+  threads: 2
+  drainSeconds: 30                     # preStop sleep: a replica being scaled in keeps serving its in-flight streams this long (0 = cut them, the pre-v2.5.1 behaviour)
+  terminationGraceSeconds: 45          # must exceed drainSeconds by >= 10 s (tests/test_drain.py enforces it)
+  port: 8081
+  metrics: true                        # pass --metrics and scrape /metrics (the lab itself does not depend on it)
+  resources:
+    requests: {cpu: 1000m, memory: 768Mi}
+    limits:   {cpu: 2000m, memory: 1536Mi}
+
+gateway:
+  nodePort: 30080                      # kind maps this to 127.0.0.1:8080 on your machine (platform/kind-config.yaml.tmpl)
+  # The gateway abandons the retriever after this long (the request then FAILS with 503). It must stay well above the
+  # `retriever_fault` latency of s5 (1.5 x the calibrated short-class TTFT threshold, e.g. 15.6 s): otherwise that scenario
+  # silently becomes an outage instead of a slowdown. The harness refuses to run s5 when it is too small.
+  retrieveTimeoutS: 30
+  resources:
+    requests: {cpu: 200m, memory: 192Mi}
+    limits:   {cpu: 1000m, memory: 512Mi}
+
+retriever:
+  resources:
+    requests: {cpu: 50m, memory: 96Mi}
+    limits:   {cpu: 300m, memory: 256Mi}
+
+# static1 | static2 | static3 | cpu | queue | burn
+autoscaling:
+  policy: static1
+  minReplicas: 1
+  maxReplicas: 3
+  pollingInterval: 5
+  # kube-prometheus-stack is installed as release "kps" with fullnameOverride "kps" (scripts/04-install-platform.sh).
+  prometheusAddress: http://kps-prometheus.monitoring.svc:9090
+  scaleUpStabilizationSeconds: 0
+  scaleDownStabilizationSeconds: 120
+  cpu:
+    utilization: 60                    # % of the CPU *request*
+  queue:
+    # Gateway-side backlog: requests admitted and not finished, divided by replicas (AverageValue).
+    query: "sum(slo_inflight) or vector(0)"
+    threshold: 2                       # == llm.parallel: above this per replica, requests are queueing
+  burn:
+    query: "max(slo:burn_rate:request_30s) or vector(0)"
+    threshold: 2                       # HPA: desiredReplicas = ceil(current * burn / threshold)
+
+# Overridden by config/slo.yaml
+slo:
+  target: 0.99
+  request_timeout_s: 60
+  ttft_s: {short: 2.0, medium: 4.0, long: 10.0}
+
+# Set enabled=false to install on a cluster without the Prometheus Operator CRDs.
+monitoring:
+  enabled: true
+  scrapeInterval: 5s
+  ruleInterval: 5s

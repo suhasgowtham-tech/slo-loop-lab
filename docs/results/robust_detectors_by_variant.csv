@@ -1,0 +1,8 @@
+detector,all,minus_accepted,host_logged_only
+fast_only_request,55/67 (82%),49/61 (80%),40/48 (83%)
+google_x60_class,42/67 (63%),37/61 (61%),33/48 (69%)
+google_x60_request,27/67 (40%),23/61 (38%),23/48 (48%)
+google_x60_token,29/67 (43%),25/61 (41%),24/48 (50%)
+tuned_class,58/67 (87%),53/61 (87%),41/48 (85%)
+tuned_request,51/67 (76%),45/61 (74%),39/48 (81%)
+tuned_token,47/67 (70%),41/61 (67%),36/48 (75%)

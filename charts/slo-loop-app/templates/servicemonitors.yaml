@@ -1,0 +1,22 @@
+{{- if .Values.monitoring.enabled }}
+{{- range $name := list "llm" "gateway" "retriever" }}
+{{- if or (ne $name "llm") $.Values.llm.metrics }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/part-of: slo-loop-lab
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ $.Values.monitoring.scrapeInterval }}
+      scrapeTimeout: 4s
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,37 @@
+pair,scope,runs,a_found,b_found,a_only,b_only,p_sign,both,ttd_a_minus_b_median_s
+tuned_class vs tuned_request,ALL,67,58,51,8,1,0.0390625,50,-15.0
+tuned_class vs tuned_request,s7_slow_burn,25,23,18,5,0,0.0625,18,-125.0
+tuned_class vs tuned_request,all but s7,42,35,33,3,1,0.625,32,-6.5
+tuned_class vs tuned_request,s1_burst,6,6,6,0,0,1.0,6,-2.0
+tuned_class vs tuned_request,s2_long_shift,6,3,2,1,0,1.0,2,-16.5
+tuned_class vs tuned_request,s3_cpu_stress,6,5,5,0,0,1.0,5,-18.0
+tuned_class vs tuned_request,s4_pod_kill,6,4,2,2,0,0.5,2,7.0
+tuned_class vs tuned_request,s5_retriever_latency,12,12,12,0,0,1.0,12,-9.0
+tuned_class vs tuned_request,s6_netem_delay,6,5,6,0,1,1.0,5,-7.0
+tuned_token vs tuned_request,ALL,67,47,51,1,5,0.21875,46,0.0
+tuned_token vs tuned_request,s7_slow_burn,25,14,18,1,5,0.21875,13,-24.0
+tuned_token vs tuned_request,all but s7,42,33,33,0,0,1.0,33,0.0
+tuned_token vs tuned_request,s1_burst,6,6,6,0,0,1.0,6,2.0
+tuned_token vs tuned_request,s2_long_shift,6,2,2,0,0,1.0,2,-12.0
+tuned_token vs tuned_request,s3_cpu_stress,6,5,5,0,0,1.0,5,0.0
+tuned_token vs tuned_request,s4_pod_kill,6,2,2,0,0,1.0,2,0.0
+tuned_token vs tuned_request,s5_retriever_latency,12,12,12,0,0,1.0,12,0.0
+tuned_token vs tuned_request,s6_netem_delay,6,6,6,0,0,1.0,6,0.0
+google_x60_class vs google_x60_request,ALL,67,42,27,15,0,6.103515625e-05,27,-6.0
+google_x60_class vs google_x60_request,s7_slow_burn,25,10,2,8,0,0.0078125,2,-0.5
+google_x60_class vs google_x60_request,all but s7,42,32,25,7,0,0.015625,25,-7.0
+google_x60_class vs google_x60_request,s1_burst,6,6,5,1,0,1.0,5,-8.0
+google_x60_class vs google_x60_request,s2_long_shift,6,2,0,2,0,0.5,0,
+google_x60_class vs google_x60_request,s3_cpu_stress,6,5,2,3,0,0.25,2,-6.5
+google_x60_class vs google_x60_request,s4_pod_kill,6,1,0,1,0,1.0,0,
+google_x60_class vs google_x60_request,s5_retriever_latency,12,12,12,0,0,1.0,12,-5.5
+google_x60_class vs google_x60_request,s6_netem_delay,6,6,6,0,0,1.0,6,-7.5
+google_x60_token vs google_x60_request,ALL,67,29,27,2,0,0.5,27,0.0
+google_x60_token vs google_x60_request,s7_slow_burn,25,2,2,0,0,1.0,2,6.5
+google_x60_token vs google_x60_request,all but s7,42,27,25,2,0,0.5,25,0.0
+google_x60_token vs google_x60_request,s1_burst,6,5,5,0,0,1.0,5,6.0
+google_x60_token vs google_x60_request,s2_long_shift,6,0,0,0,0,1.0,0,
+google_x60_token vs google_x60_request,s3_cpu_stress,6,3,2,1,0,1.0,2,-2.5
+google_x60_token vs google_x60_request,s4_pod_kill,6,1,0,1,0,1.0,0,
+google_x60_token vs google_x60_request,s5_retriever_latency,12,12,12,0,0,1.0,12,0.0
+google_x60_token vs google_x60_request,s6_netem_delay,6,6,6,0,0,1.0,6,2.0

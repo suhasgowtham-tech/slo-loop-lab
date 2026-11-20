@@ -1,0 +1,14 @@
+name: s8_ramp
+description: Stepped demand ramp up to 3x and back down (autoscaler tracking test, Phase B).
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0,   rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+  - {at: 120, rps_x: 1.5}
+  - {at: 240, rps_x: 2.2}
+  - {at: 360, rps_x: 3.0}
+  - {at: 420, rps_x: 1.5}
+  - {at: 540, rps_x: 1.0}
+faults: []
+incidents:
+  - {start: 240, end: 480, kind: demand_ramp, root_cause: llm}

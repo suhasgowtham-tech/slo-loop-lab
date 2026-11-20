@@ -1,0 +1,13 @@
+# CANDIDATE trigger thresholds, chosen from `make simulate` BEFORE any Phase B data exists (see docs/AUTOSCALING.md, sections 3-4).
+# Use:  cp config/autoscaling.candidate.yaml config/autoscaling.yaml && make autoscaling
+# Then check them on s0_baseline runs ONLY. The criterion is fixed in advance: a trigger passes when it keeps the llm tier at exactly
+# one replica for >= 90 % of an s0_baseline run. If it does not, raise its threshold one step (queue 6 -> 8, burn 10 -> 20) and re-check.
+autoscaling:
+  cpu:
+    utilization: 60        # unchanged on purpose: cannot be made quiet with a 1000m request, see docs/AUTOSCALING.md section 5
+  queue:
+    query: "sum(slo_inflight) or vector(0)"
+    threshold: 6           # in-flight requests per replica (chart default 2 scaled out at +24 s on plain baseline load)
+  burn:
+    query: "max(slo:burn_rate:request_120s) or vector(0)"   # 120 s window: ~21 requests instead of ~5, so one bad request is no longer burn >= 20
+    threshold: 10          # Value type: desiredReplicas = ceil(current * burn / 10)

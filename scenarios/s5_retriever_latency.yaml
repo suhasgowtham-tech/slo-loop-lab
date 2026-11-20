@@ -1,0 +1,10 @@
+name: s5_retriever_latency
+description: Application-level fault - retriever adds latency = 1.5x the short-class TTFT threshold for 120 s (pre-LLM stage degradation). Root cause = retriever.
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 200, until: 320, kind: retriever_fault, params: {latency_x_short_thr: 1.5}}
+incidents:
+  - {start: 200, end: 320, kind: retriever_latency, root_cause: retriever}

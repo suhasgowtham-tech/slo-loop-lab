@@ -1,0 +1,11 @@
+name: s1_burst
+description: 3x traffic burst for 120 s (capacity incident). Root cause = llm (queueing).
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0,   rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+  - {at: 200, rps_x: 3.0}
+  - {at: 320, rps_x: 1.0}
+faults: []
+incidents:
+  - {start: 200, end: 320, kind: load_burst, root_cause: llm}

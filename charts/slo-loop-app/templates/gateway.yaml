@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  labels:
+    app.kubernetes.io/name: gateway
+    {{- include "slo.labels" . | nindent 4 }}
+spec:
+  replicas: 1   # fixed on purpose: one process => one coherent set of SLI counters
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gateway
+        {{- include "slo.labels" . | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      {{- include "slo.podSecurity" . | nindent 6 }}
+      containers:
+        - name: gateway
+          image: {{ include "slo.image" .Values.images.gateway | quote }}
+          imagePullPolicy: {{ .Values.images.gateway.pullPolicy }}
+          {{- include "slo.containerSecurity" . | nindent 10 }}
+          env:
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            - {name: LLM_URL, value: {{ printf "http://llm:%v" .Values.llm.port | quote }}}
+            - {name: RETRIEVER_URL, value: "http://retriever:8001"}
+            - {name: REQUEST_TIMEOUT_S, value: {{ .Values.slo.request_timeout_s | quote }}}
+            - {name: RETRIEVE_TIMEOUT_S, value: {{ .Values.gateway.retrieveTimeoutS | default 10 | quote }}}
+            - {name: SLO_TTFT_SHORT_S, value: {{ .Values.slo.ttft_s.short | quote }}}
+            - {name: SLO_TTFT_MEDIUM_S, value: {{ .Values.slo.ttft_s.medium | quote }}}
+            - {name: SLO_TTFT_LONG_S, value: {{ .Values.slo.ttft_s.long | quote }}}
+          ports:
+            - {name: http, containerPort: 8000}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels:
+    app.kubernetes.io/name: gateway
+    {{- include "slo.labels" . | nindent 4 }}
+spec:
+  type: NodePort   # reachable from your machine at 127.0.0.1:8080 via kind's extraPortMappings (localhost only)
+  selector:
+    app.kubernetes.io/name: gateway
+  ports:
+    - {name: http, port: 8000, targetPort: http, nodePort: {{ .Values.gateway.nodePort }}}

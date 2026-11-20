@@ -1,0 +1,29 @@
+# Detector grid evaluated offline on every Phase-A run.
+# "google_x60" = the SRE-Workbook multi-window multi-burn-rate pairs, time-compressed 60x so they
+# fit a 10-minute experiment: (1h,5m,14.4x) -> (60s,5s,14.4x) and (6h,30m,6x) -> (360s,30s,6x).
+# The workbook's 3-day/6-hour slow-burn rule cannot be represented in a 10-minute run (documented
+# limitation); "tuned_*" use longer short-windows and a lower burn threshold instead.
+detectors:
+  - name: google_x60_request
+    sli: request
+    rules: [{long_s: 60, short_s: 5, burn: 14.4}, {long_s: 360, short_s: 30, burn: 6}]
+  - name: google_x60_token
+    sli: token
+    rules: [{long_s: 60, short_s: 5, burn: 14.4}, {long_s: 360, short_s: 30, burn: 6}]
+  - name: google_x60_class
+    sli: class
+    min_events: 3
+    rules: [{long_s: 60, short_s: 5, burn: 14.4}, {long_s: 360, short_s: 30, burn: 6}]
+  - name: tuned_request
+    sli: request
+    rules: [{long_s: 120, short_s: 20, burn: 6}, {long_s: 300, short_s: 60, burn: 2.5}]
+  - name: tuned_token
+    sli: token
+    rules: [{long_s: 120, short_s: 20, burn: 6}, {long_s: 300, short_s: 60, burn: 2.5}]
+  - name: tuned_class
+    sli: class
+    min_events: 3
+    rules: [{long_s: 120, short_s: 20, burn: 6}, {long_s: 300, short_s: 60, burn: 2.5}]
+  - name: fast_only_request
+    sli: request
+    rules: [{long_s: 30, short_s: 10, burn: 8}]

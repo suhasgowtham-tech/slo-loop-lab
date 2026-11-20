@@ -1,0 +1,16 @@
+name: s6_netem_delay
+description: >-
+  Chaos Mesh NetworkChaos adds 600 ms egress delay on the llm pods for 120 s. Measured on the reference machine:
+  the delay makes the readiness probe fail (1 s timeout, and a probe needs a TCP handshake plus a response, i.e. two delayed
+  packets), so the pod leaves the Service endpoints and the gateway gets connection errors (llm_error). In practice this is an
+  OUTAGE of the llm tier, not a slow-down. Needs netem in the WSL2 kernel (see `make chaos-preflight`); skipped if unsupported.
+  Root cause = llm (network path).
+duration_s: 600
+warmup_s: 45
+requires: [netem]
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 200, until: 320, kind: chaos, manifest: netem-delay-llm.yaml}
+incidents:
+  - {start: 200, end: 320, kind: network_delay, root_cause: llm}

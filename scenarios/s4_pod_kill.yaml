@@ -1,0 +1,10 @@
+name: s4_pod_kill
+description: One llm pod is killed at t=200 (instant fault; effects last until a replacement is Ready). Root cause = llm.
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 200, until: 260, kind: chaos, manifest: pod-kill-llm.yaml}
+incidents:
+  - {start: 200, end: 260, kind: pod_kill, root_cause: llm}

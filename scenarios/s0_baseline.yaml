@@ -1,0 +1,8 @@
+name: s0_baseline
+description: Steady load, no fault. Defines false-page behaviour and the calibration reference.
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults: []
+incidents: []

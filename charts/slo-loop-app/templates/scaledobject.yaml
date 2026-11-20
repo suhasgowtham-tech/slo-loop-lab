@@ -1,0 +1,46 @@
+{{- if include "slo.isKeda" . }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: llm
+  labels:
+    app.kubernetes.io/part-of: slo-loop-lab
+spec:
+  scaleTargetRef:
+    name: llm
+  minReplicaCount: {{ .Values.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.autoscaling.maxReplicas }}
+  pollingInterval: {{ .Values.autoscaling.pollingInterval }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: {{ .Values.autoscaling.scaleUpStabilizationSeconds }}
+          policies:
+            - {type: Pods, value: 3, periodSeconds: 15}
+        scaleDown:
+          stabilizationWindowSeconds: {{ .Values.autoscaling.scaleDownStabilizationSeconds }}
+          policies:
+            - {type: Pods, value: 1, periodSeconds: 30}
+  triggers:
+    {{- if eq .Values.autoscaling.policy "cpu" }}
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ .Values.autoscaling.cpu.utilization | quote }}
+    {{- else if eq .Values.autoscaling.policy "queue" }}
+    - type: prometheus
+      metricType: AverageValue
+      metadata:
+        serverAddress: {{ .Values.autoscaling.prometheusAddress | quote }}
+        query: {{ .Values.autoscaling.queue.query | quote }}
+        threshold: {{ .Values.autoscaling.queue.threshold | quote }}
+    {{- else if eq .Values.autoscaling.policy "burn" }}
+    - type: prometheus
+      metricType: Value
+      metadata:
+        serverAddress: {{ .Values.autoscaling.prometheusAddress | quote }}
+        query: {{ .Values.autoscaling.burn.query | quote }}
+        threshold: {{ .Values.autoscaling.burn.threshold | quote }}
+    {{- end }}
+{{- end }}

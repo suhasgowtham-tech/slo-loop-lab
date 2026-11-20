@@ -1,0 +1,8 @@
+# Copy to  C:\Users\<you>\.wslconfig   then run in PowerShell:   wsl --shutdown
+# (Windows keeps ~4 GB of your 16 GB; WSL gets 12 GB. Adjust processors to your CPU's logical count.)
+[wsl2]
+memory=12GB
+processors=8
+swap=4GB
+# Hands unused memory back to Windows when the lab is idle.
+autoMemoryReclaim=gradual

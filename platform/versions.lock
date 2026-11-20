@@ -1,0 +1,7 @@
+chart.chaos-mesh=2.8.7
+chart.keda=2.21.0
+chart.kps=92.17.1
+chart.metrics-server=3.14.0
+tool.helm=v3.21.3+g1ad6e68
+tool.kind=v0.32.0
+tool.kubectl=v1.36.2

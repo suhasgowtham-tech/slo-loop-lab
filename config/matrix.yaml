@@ -1,0 +1,24 @@
+# Experiment matrix. Run order is shuffled (seeded) to decorrelate runs from laptop thermal drift.
+phases:
+  A:   # H1/H2: detection quality. Fixed capacity (static1) so the SLI/alerting is the variable.
+    description: detection policies x fault scenarios
+    seed: 1001
+    policies: [static1]
+    scenarios:
+      - s0_baseline
+      - s1_burst
+      - s2_long_shift
+      - s3_cpu_stress
+      - s4_pod_kill
+      - s5_retriever_latency
+      - s6_netem_delay        # skipped automatically if Chaos Mesh netem is unsupported here
+      - s7_slow_burn
+  B:   # H3: autoscaling policy comparison.
+    description: autoscaling policies x load scenarios
+    seed: 2002
+    policies: [static1, static3, cpu, queue, burn]
+    scenarios:
+      - s1_burst
+      - s2_long_shift
+      - s3_cpu_stress
+      - s8_ramp

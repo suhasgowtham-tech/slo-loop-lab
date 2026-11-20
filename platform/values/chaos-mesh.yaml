@@ -1,0 +1,16 @@
+# kind runs containerd; Chaos Mesh needs the runtime + socket path to reach container namespaces.
+chaosDaemon:
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock
+
+controllerManager:
+  replicaCount: 1
+  # Blast-radius control: experiments are honoured ONLY in namespaces annotated
+  # chaos-mesh.org/inject=enabled (scripts/02-create-cluster.sh annotates `slo-loop` and nothing else).
+  enableFilterNamespace: true
+
+dashboard:
+  create: false   # saves memory; experiments are applied from YAML by the runner
+
+dnsServer:
+  create: false

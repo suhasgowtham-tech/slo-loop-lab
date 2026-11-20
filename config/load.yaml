@@ -1,0 +1,77 @@
+# Load model for the whole lab. Rewritten by `make latency`, `make capacity` and `make profile`; safe to edit by hand.
+# `profile` picks the request sizes (config/profiles.yaml). `make capacity` then measures how many requests per
+# second ONE llm replica can serve and sets base_rps = base_fraction * capacity, so every scenario scales to your hardware.
+load:
+  profile: lite
+  calibrated: true
+  capacity_1replica_rps: 0.237
+  base_rps: 0.178
+  classes:
+    short:
+      words: 30
+      max_tokens: 24
+    medium:
+      words: 120
+      max_tokens: 24
+    long:
+      words: 300
+      max_tokens: 24
+  default_mix:
+    short: 0.6
+    medium: 0.3
+    long: 0.1
+  client:
+    request_timeout_s: 90
+    max_outstanding: 400
+  latency_idle:
+    per_class:
+      short:
+        n_ok: 4
+        ttft_mean_s: 0.599
+        total_mean_s: 1.528
+        total_max_s: 1.607
+      medium:
+        n_ok: 4
+        ttft_mean_s: 1.863
+        total_mean_s: 2.774
+        total_max_s: 3.006
+      long:
+        n_ok: 4
+        ttft_mean_s: 4.457
+        total_mean_s: 5.559
+        total_max_s: 5.806
+    mean_service_s: 2.305
+    est_capacity_rps: 0.434
+    idle_ttft_p95_s: 4.629
+    profile: lite
+    measured_at: '2026-11-05T13:17:47Z'
+  capacity_probe:
+  - rps: 0.152
+    seconds: 132
+    n: 22
+    error_ratio: 0.0
+    ttft_p95: 2.482
+    total_mean: 2.742
+    passed: true
+  - rps: 0.19
+    seconds: 105
+    n: 20
+    error_ratio: 0.0
+    ttft_p95: 4.344
+    total_mean: 2.869
+    passed: true
+  - rps: 0.237
+    seconds: 84
+    n: 24
+    error_ratio: 0.0
+    ttft_p95: 5.117
+    total_mean: 4.7
+    passed: true
+  - rps: 0.297
+    seconds: 67
+    n: 22
+    error_ratio: 0.0
+    ttft_p95: 20.205
+    total_mean: 15.026
+    passed: false
+  base_fraction: 0.75

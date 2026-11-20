@@ -1,0 +1,45 @@
+# Release name `kps` + fullnameOverride => Prometheus is reachable in-cluster at
+# http://kps-prometheus.monitoring.svc:9090 (used by the KEDA triggers in the app chart).
+fullnameOverride: kps
+
+# kind exposes these control-plane endpoints on localhost only, so scraping them just produces noise.
+kubeEtcd: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeProxy: {enabled: false}
+# node-exporter's host-root mount fails on kind ("not a shared or slave mount"); not needed here
+# (container CPU comes from cAdvisor, replica counts from kube-state-metrics).
+nodeExporter: {enabled: false}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 128Mi}}
+
+prometheus:
+  service: {type: NodePort, nodePort: 30090}
+  prometheusSpec:
+    retention: 2d
+    scrapeInterval: 15s
+    # Pick up ServiceMonitors / PrometheusRules from any namespace without a `release:` label match.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    resources: {requests: {cpu: 100m, memory: 400Mi}, limits: {memory: 1536Mi}}
+
+grafana:
+  adminPassword: slo-loop-lab   # local-only lab; the port is bound to 127.0.0.1
+  service: {type: NodePort, nodePort: 30030}
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}
+
+prometheusOperator:
+  resources: {requests: {cpu: 20m, memory: 64Mi}, limits: {memory: 256Mi}}

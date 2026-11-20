@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["images", "slo", "llm", "gateway", "autoscaling", "monitoring"],
+  "properties": {
+    "images": {
+      "type": "object",
+      "required": ["gateway", "retriever", "llm"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["repository", "tag", "digest", "pullPolicy"],
+        "properties": {
+          "repository": {"type": "string", "minLength": 1},
+          "tag": {"type": "string", "minLength": 1},
+          "digest": {"type": "string", "pattern": "^(sha256:[0-9a-f]{64})?$"},
+          "pullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
+        }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "required": ["target", "request_timeout_s", "ttft_s"],
+      "properties": {
+        "target": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "request_timeout_s": {"type": "number", "exclusiveMinimum": 0},
+        "ttft_s": {
+          "type": "object",
+          "required": ["short", "medium", "long"],
+          "properties": {
+            "short": {"type": "number", "exclusiveMinimum": 0},
+            "medium": {"type": "number", "exclusiveMinimum": 0},
+            "long": {"type": "number", "exclusiveMinimum": 0}
+          }
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "required": ["modelFile", "port", "threads", "parallel", "ctxSize", "resources", "metrics"],
+      "properties": {
+        "modelFile": {"type": "string", "pattern": "\\.gguf$"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "threads": {"type": "integer", "minimum": 1},
+        "parallel": {"type": "integer", "minimum": 1},
+        "ctxSize": {"type": "integer", "minimum": 512},
+        "drainSeconds": {"type": "integer", "minimum": 0, "maximum": 300},
+        "terminationGraceSeconds": {"type": "integer", "minimum": 1, "maximum": 600},
+        "metrics": {"type": "boolean"}
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "required": ["nodePort", "resources"],
+      "properties": {"nodePort": {"type": "integer", "minimum": 30000, "maximum": 32767}}
+    },
+    "autoscaling": {
+      "type": "object",
+      "required": ["policy", "minReplicas", "maxReplicas", "prometheusAddress"],
+      "properties": {
+        "policy": {"type": "string", "enum": ["static1", "static2", "static3", "cpu", "queue", "burn"]},
+        "minReplicas": {"type": "integer", "minimum": 1},
+        "maxReplicas": {"type": "integer", "minimum": 1}
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "required": ["enabled", "scrapeInterval", "ruleInterval"],
+      "properties": {"enabled": {"type": "boolean"}}
+    }
+  }
+}

@@ -1,0 +1,11 @@
+name: s2_long_shift
+description: Same request rate, but the share of long prompts rises from 10% to 50% (cost shift without a count shift).
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0,   rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+  - {at: 200, rps_x: 1.0, mix: {short: 0.2, medium: 0.3, long: 0.5}}
+  - {at: 380, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults: []
+incidents:
+  - {start: 200, end: 380, kind: prompt_mix_shift, root_cause: llm}

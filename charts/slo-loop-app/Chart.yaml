@@ -1,0 +1,6 @@
+apiVersion: v2
+name: slo-loop-app
+description: LLM-serving workload (gateway + retriever + llama.cpp) with SLO recording rules, KEDA autoscaling policies and a Grafana dashboard
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

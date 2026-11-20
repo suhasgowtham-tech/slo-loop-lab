@@ -1,0 +1,16 @@
+# Optional. Copy to config/autoscaling.yaml, edit, then run `make autoscaling` (full helm upgrade, no pod restarts).
+# Only `autoscaling:` trigger keys are accepted; the POLICY itself is chosen per run by the experiment matrix.
+#
+# Why this file exists: at ~0.18 requests/s the shipped thresholds scale out on plain baseline load (see
+# `make simulate` and docs/AUTOSCALING.md). Tune them HERE, using s0_baseline runs only (never the scenarios you
+# will compare policies on), and keep the file for the whole of Phase B: every run records the values it ran with.
+autoscaling:
+  cpu:
+    utilization: 60        # % of the CPU *request* (1000m). llama.cpp uses ~2 cores while generating, so 60 % = busy >1/3 of the time
+  queue:
+    query: "sum(slo_inflight) or vector(0)"
+    threshold: 2           # in-flight requests per replica (AverageValue). 2 == llm.parallel
+  burn:
+    query: "max(slo:burn_rate:request_30s) or vector(0)"
+    threshold: 2           # burn rate (Value); desiredReplicas = ceil(current * burn / threshold)
+  # scaleDownStabilizationSeconds: 120

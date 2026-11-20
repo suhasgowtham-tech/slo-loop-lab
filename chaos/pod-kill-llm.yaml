@@ -1,0 +1,13 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: lab-pod-kill-llm
+  namespace: slo-loop
+spec:
+  action: pod-kill
+  mode: one
+  gracePeriod: 0
+  selector:
+    namespaces: [slo-loop]
+    labelSelectors:
+      app.kubernetes.io/name: llm

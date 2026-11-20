@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - name: Install
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -q --upgrade pip
+          .venv/bin/python -m pip install -q -e '.[dev]'
+      - name: Lint (yamllint, shellcheck, helm lint + template for every policy)
+        run: make lint
+      - name: Tests (unit, chart, local end-to-end with a fake llama.cpp)
+        run: make test

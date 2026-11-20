@@ -1,0 +1,22 @@
+# Workload profiles = request sizes. Pick one with `make profile P=lite` (or P=standard).
+#
+# Why two: the cost of a request on CPU llama.cpp is dominated by prompt evaluation (~14 ms per prompt token
+# and ~40 ms per generated token on a laptop i7 with 2 threads/replica, measured on the lab's reference machine).
+# The "standard" mix costs ~8 s per request there, so one replica can serve only ~0.12 requests/s and a
+# 10-minute run contains ~35 requests: far too few events for a 99% SLO. "lite" keeps the SHAPE of the problem
+# (three prompt classes, 10x spread in cost, a long-prompt tail) at about a third of the cost.
+profiles:
+  lite:
+    description: "short 30 / medium 120 / long 300 words, 24 generated tokens. ~3 s mean service time on a laptop CPU. Default."
+    safe_base_rps: 0.1
+    classes:
+      short:  {words: 30,  max_tokens: 24}
+      medium: {words: 120, max_tokens: 24}
+      long:   {words: 300, max_tokens: 24}
+  standard:
+    description: "short 50 / medium 400 / long 900 words, 64 generated tokens. ~8 s mean service time on a laptop CPU; use on a faster machine."
+    safe_base_rps: 0.05
+    classes:
+      short:  {words: 50,  max_tokens: 64}
+      medium: {words: 400, max_tokens: 64}
+      long:   {words: 900, max_tokens: 64}

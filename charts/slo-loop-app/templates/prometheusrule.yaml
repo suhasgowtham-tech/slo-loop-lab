@@ -1,0 +1,50 @@
+{{- if .Values.monitoring.enabled }}
+{{- $t := .Values.slo.target }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: slo-loop
+  labels:
+    app.kubernetes.io/part-of: slo-loop-lab
+spec:
+  groups:
+    # burn rate = (bad fraction over the window) / (1 - SLO target). A request is "bad" when it did not finish
+    # ok within its class TTFT threshold. The (1 - target) constant is computed by PromQL itself, not by the
+    # template (Sprig's `sub` is integer-only). `> 0` + `or vector(0)` => 0 (not "no data") when idle.
+    - name: slo-loop.recording
+      interval: {{ .Values.monitoring.ruleInterval }}
+      rules:
+        {{- range $w := list "30s" "120s" "300s" }}
+        - record: {{ printf "slo:burn_rate:request_%s" $w }}
+          expr: {{ printf "(1 - (sum(rate(slo_good_requests_total[%s])) / (sum(rate(slo_requests_total[%s])) > 0))) / (1 - %v) or vector(0)" $w $w $t | quote }}
+        - record: {{ printf "slo:burn_rate:token_%s" $w }}
+          expr: {{ printf "(1 - (sum(rate(slo_good_weight_total[%s])) / (sum(rate(slo_weight_total[%s])) > 0))) / (1 - %v) or vector(0)" $w $w $t | quote }}
+        {{- end }}
+        - record: slo:good_ratio:class_120s
+          expr: {{ "sum by (class) (rate(slo_good_requests_total[120s])) / (sum by (class) (rate(slo_requests_total[120s])) > 0)" | quote }}
+    # DEMO alerts on time-compressed windows (the lab runs 10-minute scenarios). The measured detector
+    # comparison is the offline replay in lab/analysis/detect.py, not these rules.
+    - name: slo-loop.alerts
+      rules:
+        - alert: SLOBurnFast
+          expr: slo:burn_rate:request_30s >= 6 and slo:burn_rate:request_120s >= 6
+          for: 10s
+          labels:
+            severity: page
+          annotations:
+            summary: "Fast SLO burn (request SLI): budget is being consumed at 6x or more."
+        - alert: SLOBurnSlow
+          expr: slo:burn_rate:request_120s >= 2.5 and slo:burn_rate:request_300s >= 2.5
+          for: 30s
+          labels:
+            severity: ticket
+          annotations:
+            summary: "Slow SLO burn (request SLI): budget is being consumed at 2.5x or more."
+        - alert: SLOBurnFastToken
+          expr: slo:burn_rate:token_30s >= 6 and slo:burn_rate:token_120s >= 6
+          for: 10s
+          labels:
+            severity: page
+          annotations:
+            summary: "Fast SLO burn (token-weighted SLI): cost-weighted budget is burning at 6x or more."
+{{- end }}

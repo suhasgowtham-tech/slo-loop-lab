@@ -1,0 +1,16 @@
+# Rendered by scripts/02-create-cluster.sh: __MODELS_DIR__ -> absolute path of ./models; __GATEWAY_PORT__/__PROM_PORT__/__GRAFANA_PORT__ -> host ports (defaults 8080/9090/3000).
+# One node on purpose: scheduling, CPU contention and network paths are then identical in every run.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: slo-loop
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: __MODELS_DIR__
+        containerPath: /models
+        readOnly: true
+    extraPortMappings:
+      # Bound to 127.0.0.1 only: nothing in this lab is exposed to your LAN.
+      - {containerPort: 30080, hostPort: __GATEWAY_PORT__, listenAddress: "127.0.0.1", protocol: TCP}   # gateway
+      - {containerPort: 30090, hostPort: __PROM_PORT__, listenAddress: "127.0.0.1", protocol: TCP}   # Prometheus
+      - {containerPort: 30030, hostPort: __GRAFANA_PORT__, listenAddress: "127.0.0.1", protocol: TCP}   # Grafana

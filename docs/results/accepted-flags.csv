@@ -1,0 +1,11 @@
+epoch,phase,run,flags,attempts,note
+1794903133,B,s2_long_shift__burn__r2,SLOW,1,accepted after re-run on a healthy machine (phase B)
+1794903133,B,s2_long_shift__cpu__r2,SLOW,1,accepted after re-run on a healthy machine (phase B)
+1794903133,B,s2_long_shift__queue__r2,SLOW,1,accepted after re-run on a healthy machine (phase B)
+1794903133,B,s2_long_shift__static1__r2,SLOW,1,accepted after re-run on a healthy machine (phase B)
+1794903134,A,s6_netem_delay__static1__r4,BAD,1,accepted after re-run on a healthy machine (phase A)
+1794903134,A,s7_slow_burn__static1__r2,BAD|SLOW,1,accepted after re-run on a healthy machine (phase A)
+1794970291,A,s2_long_shift__static1__r2,SLOW,1,accepted after re-run on a healthy machine (phase A)
+1795082963,A,s5_retriever_latency__static1__r3,BAD,2,accepted after re-run on a healthy machine (phase A)
+1795082963,A,s7_slow_burn__static1__r14,SLOW,2,accepted after re-run on a healthy machine (phase A)
+1795082963,A,s7_slow_burn__static1__r16,BAD,2,accepted after re-run on a healthy machine (phase A)

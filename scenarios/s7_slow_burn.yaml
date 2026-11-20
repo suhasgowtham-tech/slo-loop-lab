@@ -1,0 +1,10 @@
+name: s7_slow_burn
+description: Retriever fails 3% of requests for 360 s => ~3x burn rate at a 99% target. Tests slow-burn detection that fast-burn rules (14.4x, 6x) are designed to miss. Root cause = retriever.
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 120, until: 480, kind: retriever_fault, params: {error_rate: 0.03}}
+incidents:
+  - {start: 120, end: 480, kind: retriever_errors, root_cause: retriever}

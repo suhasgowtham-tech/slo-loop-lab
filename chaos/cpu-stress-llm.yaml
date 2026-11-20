@@ -1,0 +1,16 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: lab-cpu-stress-llm
+  namespace: slo-loop
+spec:
+  mode: one
+  selector:
+    namespaces: [slo-loop]
+    labelSelectors:
+      app.kubernetes.io/name: llm
+  stressors:
+    cpu:
+      workers: 2
+      load: 100
+  duration: "600s"   # safety cap; the runner deletes the experiment at the scenario's `until`

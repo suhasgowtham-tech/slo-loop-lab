@@ -1,0 +1,10 @@
+name: s3_cpu_stress
+description: Chaos Mesh StressChaos burns CPU inside one llm pod for 120 s (noisy neighbour / throttling). Root cause = llm.
+duration_s: 600
+warmup_s: 45
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 200, until: 320, kind: chaos, manifest: cpu-stress-llm.yaml}
+incidents:
+  - {start: 200, end: 320, kind: cpu_stress, root_cause: llm}

@@ -1,0 +1,5 @@
+# kind's kubelet serves a self-signed certificate; 15 s resolution keeps the CPU autoscaling policy
+# from being handicapped by metrics-server's default 60 s.
+args:
+  - --kubelet-insecure-tls
+  - --metric-resolution=15s
