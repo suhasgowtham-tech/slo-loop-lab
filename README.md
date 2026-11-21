@@ -1,5 +1,7 @@
 # SLO-Loop Lab
 
+[![ci](https://github.com/suhasgowtham-tech/slo-loop-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/suhasgowtham-tech/slo-loop-lab/actions/workflows/ci.yml) ![licence: MIT](https://img.shields.io/badge/licence-MIT-blue)
+
 **Do classic SRE reliability methods survive LLM-serving workloads, and where exactly do they break?**
 
 A reproducible, ₹0, single-laptop lab (Windows 11 + WSL2 + Docker Desktop, 16 GB RAM) that serves a small
@@ -18,16 +20,46 @@ multi-burn-rate alerts and autoscaling policies behave on that traffic.
 Everything is open source and free: kind, Helm, kube-prometheus-stack, KEDA, Chaos Mesh, llama.cpp,
 and a 0.4 GB Apache-2.0 model. Nothing is exposed beyond `127.0.0.1`.
 
-## Read this first: what is and is not verified
+## Results (one run, one laptop, 19 Nov 2026)
 
-| Verified in CI-style checks (done before you received this) | Only your laptop can verify (`make verify` does it for you) |
+73 detection runs and 90 autoscaling runs, paired on identical traffic. Full tables, caveats and the list of things that went wrong:
+**[docs/RESULTS.md](docs/RESULTS.md)** (raw tables and figures in [docs/results/](docs/results/); `make publish-results` regenerates them from your own runs).
+
+| | Verdict against the pre-registered prediction | Key numbers |
+|---|---|---|
+| **H1** token / class SLIs | **Not demonstrated** for the named scenario (`s2`: 6 runs, 2 comparable). The per-class SLI finds more incidents overall (borderline); the token SLI does not | tuned class 58/67 vs request 51/67 (p = 0.039); token 47/67 |
+| **H2** Workbook thresholds (x60) | **Half supported.** They are blind to the slow burn; they are *not* noisier than tuned ones | `s7`: 2/25 vs 18/25 (p < 0.001); false pages per quiet hour 1.12 vs 1.26 (request) |
+| **H3** CPU autoscaling is a poor signal | **Falsified, the opposite.** CPU scaling burned the least budget, at the price of about 1 to 1.4 more replicas; queue and burn scaling were no better than never scaling | cpu < queue 10/10, cpu < burn 8 of 9 non-tied (p = 0.002 / 0.039); 18 pairs: cpu < static3 10-2 with 0.35 fewer replicas |
+| **H4** stage attribution | **Latency-only baseline not supported** (chance level on retriever incidents, below chance on the error-only `s7`). **Failure-tag attribution confirmed** on fresh reps | naive 14/37; tagged 18/18 fresh (Wilson lower bound 0.82) |
+
+Read the caveats before quoting any of it: single shared node, small counts, no multiplicity correction on the H1 / H2 tests, and the "why" for H3
+(CPU target vs a 1000m request makes the CPU policy an over-provisioner) is an untested explanation.
+
+## Hypotheses (full operationalisation in [docs/DESIGN.md](docs/DESIGN.md))
+
+| | Claim under test | Where |
+|---|---|---|
+| **H1** | Request-count SLIs hide the pain of long-prompt users; token-weighted (or per-class) budgets detect a prompt-mix shift sooner | Phase A, `s2_long_shift` |
+| **H2** | Standard (SRE-Workbook) burn-rate thresholds mis-time or mis-fire on heavy-tailed LLM latency; re-tuned windows fix part of it | Phase A, all scenarios, 7 detectors replayed on identical traffic |
+| **H3** | CPU-based autoscaling is a poor signal for LLM serving; queue-depth and burn-rate-aware scaling burn less error budget per replica-second | Phase B, 5 policies × 4 scenarios |
+| **H4** | A trivial stage-attribution baseline localises the faulty component well above chance, and fails in identifiable cases | Phase A, incidents with ground-truth root cause |
+
+The design pre-registers what would **falsify** each claim. The honest outcome may be "no difference" or
+"the opposite"; both are publishable findings.
+
+## What is verified, and how
+
+Every push runs `make lint && make test` in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+Anything that needs the real cluster can only be checked on the lab itself, and `make verify` does that.
+
+| Checked automatically (CI, no cluster needed) | Checked on the lab itself (`make verify`) |
 |---|---|
-| 300+ pytest tests: SLI math, burn-rate windows, detectors (incl. low-traffic window stretching), scoring, RCA baseline, load generator, the adaptive capacity probe, workload profiles, deployment guards, and a full local end-to-end run (real gateway + retriever processes, a **fake** llama.cpp, fault injection, detection, RCA) | That the **real** llama.cpp image accepts the flags and streams the format the gateway expects (`make verify` probes it) |
-| Helm chart rendered through Go's real `text/template` engine for all 6 policies; no duplicate resources, selectors/ports line up, NodePorts match the kind mapping, every PromQL expression parses, every rule/metric name the dashboard and KEDA use is defined | `helm lint` / `helm install` with the **real Helm binary** (it could not be downloaded in the build sandbox) |
-| yamllint and shellcheck clean; built-in Kubernetes kinds validated against the K8s 1.33 schemas | kind/Docker Desktop behaviour, image builds, KEDA/Chaos Mesh behaviour, WSL2 kernel features such as netem |
-| The tests were **mutation-checked**: 10 deliberately re-introduced chart bugs were all caught | Whether your machine reproduces the results below. Absolute latencies, capacity and thresholds are specific to one laptop; the *relative* findings are what to compare. |
+| 313 pytest tests: SLI math, burn-rate windows, detectors (incl. low-traffic window stretching), scoring, RCA baseline, load generator, the adaptive capacity probe, workload profiles, deployment guards, and a full local end-to-end run (real gateway + retriever processes, a **fake** llama.cpp, fault injection, detection, RCA) | That the **real** llama.cpp image accepts the flags and streams the format the gateway expects (`make verify` probes it) |
+| Helm chart rendered through Go's real `text/template` engine for all 6 policies; no duplicate resources, selectors/ports line up, NodePorts match the kind mapping, every PromQL expression parses, every rule/metric name the dashboard and KEDA use is defined; `helm lint` and `helm template` (Helm 3.16.4) for every policy | `helm install` into the real cluster, kind/Docker Desktop behaviour, image builds, KEDA/Chaos Mesh behaviour, WSL2 kernel features such as netem |
+| yamllint and shellcheck; built-in Kubernetes kinds validated against the K8s 1.33 schemas | Whether another machine reproduces the results below. Absolute latencies, capacity and thresholds are specific to one laptop; the *relative* findings are what to compare. |
+| The tests were **mutation-checked**: 10 deliberately re-introduced chart bugs were all caught | |
 
-The results below are from one run on one laptop (19 Nov 2026). Any figure you publish must come from your own runs; yours will differ in absolute numbers.
+The results below are from one run on one laptop (19 Nov 2026). Absolute numbers will differ on other hardware.
 
 ## Requirements
 
@@ -52,7 +84,7 @@ enable *Ubuntu-24.04*. Start Docker Desktop and wait until it says *running*.
 
 ```bash
 sudo apt-get update && sudo apt-get install -y python3-venv python3-pip curl jq make git unzip
-cd ~ && unzip /mnt/c/Users/<you>/Downloads/slo-loop-lab.zip && cd slo-loop-lab
+git clone https://github.com/suhasgowtham-tech/slo-loop-lab.git ~/slo-loop-lab && cd ~/slo-loop-lab
 make up
 ```
 
@@ -115,33 +147,6 @@ Run long phases overnight with the laptop plugged in and sleep disabled; close b
 (the load generator reports its own scheduling lag and **invalidates** a run it could not drive faithfully).
 Subset example: `.venv/bin/slo-lab matrix --phase B --reps 2 --only s1_burst s8_ramp`.
 
-## Hypotheses (full operationalisation in [docs/DESIGN.md](docs/DESIGN.md))
-
-| | Claim under test | Where |
-|---|---|---|
-| **H1** | Request-count SLIs hide the pain of long-prompt users; token-weighted (or per-class) budgets detect a prompt-mix shift sooner | Phase A, `s2_long_shift` |
-| **H2** | Standard (SRE-Workbook) burn-rate thresholds mis-time or mis-fire on heavy-tailed LLM latency; re-tuned windows fix part of it | Phase A, all scenarios, 7 detectors replayed on identical traffic |
-| **H3** | CPU-based autoscaling is a poor signal for LLM serving; queue-depth and burn-rate-aware scaling burn less error budget per replica-second | Phase B, 5 policies × 4 scenarios |
-| **H4** | A trivial stage-attribution baseline localises the faulty component well above chance, and fails in identifiable cases | Phase A, incidents with ground-truth root cause |
-
-The design pre-registers what would **falsify** each claim. The honest outcome may be "no difference" or
-"the opposite"; both are publishable findings.
-
-## Results (one run, one laptop, 19 Nov 2026)
-
-73 detection runs and 90 autoscaling runs, paired on identical traffic. Full tables, caveats and the list of things that went wrong:
-**[docs/RESULTS.md](docs/RESULTS.md)** (raw tables in [docs/results/](docs/results/) after `make publish-results`).
-
-| | Verdict against the pre-registered prediction | Key numbers |
-|---|---|---|
-| **H1** token / class SLIs | **Not demonstrated** for the named scenario (`s2`: 6 runs, 2 comparable). The per-class SLI finds more incidents overall (borderline); the token SLI does not | tuned class 58/67 vs request 51/67 (p = 0.039); token 47/67 |
-| **H2** Workbook thresholds (x60) | **Half supported.** They are blind to the slow burn; they are *not* noisier than tuned ones | `s7`: 2/25 vs 18/25 (p < 0.001); false pages per quiet hour 1.12 vs 1.26 (request) |
-| **H3** CPU autoscaling is a poor signal | **Falsified, the opposite.** CPU scaling burned the least budget, at the price of about 1 to 1.4 more replicas; queue and burn scaling were no better than never scaling | cpu < queue 10/10, cpu < burn 8 of 9 non-tied (p = 0.002 / 0.039); 18 pairs: cpu < static3 10-2 with 0.35 fewer replicas |
-| **H4** stage attribution | **Latency-only baseline not supported** (chance level on retriever incidents, below chance on the error-only `s7`). **Failure-tag attribution confirmed** on fresh reps | naive 14/37; tagged 18/18 fresh (Wilson lower bound 0.82) |
-
-Read the caveats before quoting any of it: single shared node, small counts, no multiplicity correction on the H1 / H2 tests, and the "why" for H3
-(CPU target vs a 1000m request makes the CPU policy an over-provisioner) is an untested explanation.
-
 ## Scenarios
 
 | Id | Fault | Root cause label |
@@ -187,10 +192,12 @@ One node means the load generator, Prometheus and the model share CPU; results a
 The RCA baseline uses stage timings, not distributed traces. Repetitions: 6 per Phase A scenario (s5: 12, s7: 25) and 3 (s1, s2) or 6 (s3, s8)
 per Phase B cell, so intervals are wide. See *Threats to validity* in [docs/DESIGN.md](docs/DESIGN.md).
 
-## Using this honestly on a résumé
+## How this was built
 
-Write what you ran and measured ("built a Kubernetes lab and measured X over N runs"), link the repo and the report,
-and be ready to explain every design choice in an interview; the DESIGN document is written to help with that.
-Do not list results you have not produced. Report the predictions that failed (H3 was falsified, H2 half falsified) as plainly as the ones that held.
+The harness, Helm chart, scenarios and documents were written with AI assistance (Claude, from Anthropic).
+The experiments were run by me, on my own laptop: 163 runs (73 detection, 90 autoscaling), including the failed
+runs, re-runs and host-health problems listed in [docs/RESULTS.md](docs/RESULTS.md). Every number in the Results
+section is computed by `make analyze` and `make robust` from those runs. The predictions that failed (H3 falsified,
+H2 half falsified) are reported as plainly as the ones that held.
 
 Licence: MIT (see `LICENSE`). Third-party components keep their own licences.
