@@ -54,10 +54,10 @@ Anything that needs the real cluster can only be checked on the lab itself, and 
 
 | Checked automatically (CI, no cluster needed) | Checked on the lab itself (`make verify`) |
 |---|---|
-| 313 pytest tests: SLI math, burn-rate windows, detectors (incl. low-traffic window stretching), scoring, RCA baseline, load generator, the adaptive capacity probe, workload profiles, deployment guards, and a full local end-to-end run (real gateway + retriever processes, a **fake** llama.cpp, fault injection, detection, RCA) | That the **real** llama.cpp image accepts the flags and streams the format the gateway expects (`make verify` probes it) |
-| Helm chart rendered through Go's real `text/template` engine for all 6 policies; no duplicate resources, selectors/ports line up, NodePorts match the kind mapping, every PromQL expression parses, every rule/metric name the dashboard and KEDA use is defined; `helm lint` and `helm template` (Helm 3.16.4) for every policy | `helm install` into the real cluster, kind/Docker Desktop behaviour, image builds, KEDA/Chaos Mesh behaviour, WSL2 kernel features such as netem |
+| 372 pytest tests: SLI math, burn-rate windows, detectors (incl. low-traffic window stretching), scoring, RCA baseline, load generator, the adaptive capacity probe, workload profiles, deployment guards, and a full local end-to-end run (real gateway + retriever processes, a **fake** llama.cpp, fault injection, detection, RCA), and every Grafana dashboard query evaluated by Prometheus' own engine (`promtool`) over synthetic data with known answers | That the **real** llama.cpp image accepts the flags and streams the format the gateway expects (`make verify` probes it) |
+| Helm chart rendered through Go's real `text/template` engine for all 6 policies; no duplicate resources, selectors/ports line up, NodePorts match the kind mapping, every PromQL expression parses, every rule/metric name the dashboards and KEDA use is defined; `helm lint` and `helm template` (Helm 3.16.4) for every policy | `helm install` into the real cluster, kind/Docker Desktop behaviour, image builds, KEDA/Chaos Mesh behaviour, WSL2 kernel features such as netem, and how the three dashboards *look* in Grafana (their queries are tested; layout and colours are checked by eye) |
 | yamllint and shellcheck; built-in Kubernetes kinds validated against the K8s 1.33 schemas | Whether another machine reproduces the results below. Absolute latencies, capacity and thresholds are specific to one laptop; the *relative* findings are what to compare. |
-| The tests were **mutation-checked**: 10 deliberately re-introduced chart bugs were all caught | |
+| The tests were **mutation-checked**: 10 deliberately re-introduced chart bugs, and later 21 more in the dashboards, the fault markers and `make status`, were all caught | |
 
 The results below are from one run on one laptop (19 Nov 2026). Absolute numbers will differ on other hardware.
 
@@ -94,8 +94,23 @@ make up
 Chaos Mesh) → `deploy` → `verify`. **If `verify` is not fully green, stop and read
 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md); do not run experiments on an unverified lab.**
 
-Dashboards (localhost only): Grafana <http://127.0.0.1:3000> (admin / `slo-loop-lab`, dashboard *SLO-Loop Lab*),
-Prometheus <http://127.0.0.1:9090>, gateway <http://127.0.0.1:8080>.
+Dashboards (localhost only): Grafana <http://127.0.0.1:3000> (admin / `slo-loop-lab`), Prometheus <http://127.0.0.1:9090>,
+gateway <http://127.0.0.1:8080>.
+
+### Grafana dashboards
+
+Three dashboards ship with the Helm chart (`make deploy` loads them), written as code in `lab/dashgen.py`:
+
+| Dashboard | Answers | For |
+|---|---|---|
+| **Service health** | Are we meeting the SLO, and how much error budget is left? | VPs, founders, anyone who needs the answer in 10 seconds |
+| **Incident view** | What broke, which stage, which prompt class, and since when? | the on-call engineer |
+| **Autoscaling experiment** | Does capacity follow demand, which signal drives it, and what does it cost? | the lab's own Phase B |
+
+Every time series shows the faults the harness injected (red bands), the experiment runs (purple) and the burn-rate alerts
+(yellow). The SLO target, the per-class TTFT thresholds and the autoscaler thresholds are drawn from the same values the alerts
+and KEDA use, so a dashboard cannot disagree with them. `make dashboards` checks that all three are loaded; `make demo` runs one
+guided 4.5-minute incident (alert to recovery) to record. Details, panel by panel: [docs/DASHBOARDS.md](docs/DASHBOARDS.md).
 
 ## Running the study
 
@@ -165,7 +180,7 @@ Subset example: `.venv/bin/slo-lab matrix --phase B --reps 2 --only s1_burst s8_
 
 ```
 apps/gateway, apps/retriever   the two Python services (+ Dockerfiles)
-charts/slo-loop-app            Helm chart: workloads, KEDA ScaledObjects, ServiceMonitors, SLO recording rules, Grafana dashboard
+charts/slo-loop-app            Helm chart: workloads, KEDA ScaledObjects, ServiceMonitors, SLO recording rules, 3 Grafana dashboards (generated by lab/dashgen.py)
 platform/                      kind config + pinned-by-lockfile values for the platform charts
 chaos/                         Chaos Mesh manifests (blast radius: namespace slo-loop only)
 config/                        slo.yaml · load.yaml · detectors.yaml · matrix.yaml (single source of truth)

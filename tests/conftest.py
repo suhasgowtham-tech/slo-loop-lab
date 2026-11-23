@@ -14,6 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("LAB_QUIET_WAIT_S", "0")  # tests must never sit waiting for the host's load average
+os.environ.setdefault("LAB_ANNOTATE", "0")     # tests must never post markers to a Grafana (tests that cover markers construct an Annotator explicitly)
 
 
 def free_port() -> int:

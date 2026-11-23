@@ -70,8 +70,9 @@ check "metric slo_requests_total exists" retry 60 has_series 'slo_requests_total
 check "recording rule slo:burn_rate:request_30s is being evaluated" retry 150 has_series 'slo:burn_rate:request_30s'
 check "kube-state-metrics sees llm replicas" retry 60 has_series 'kube_deployment_status_replicas_ready{namespace="slo-loop",deployment="llm"}'
 check "cAdvisor reports llm CPU" retry 90 has_series 'container_cpu_usage_seconds_total{namespace="slo-loop",pod=~"llm-.*",container="llama"}'
-dash() { curl -fsS -m 15 -u "admin:slo-loop-lab" "http://127.0.0.1:${GRAFANA_PORT}/api/search?query=SLO-Loop" | jq -e 'length >= 1'; }
-check "Grafana has the 'SLO-Loop Lab' dashboard (sidecar-provisioned)" retry 150 dash
+dash() { curl -fsS -m 15 -u "admin:slo-loop-lab" "http://127.0.0.1:${GRAFANA_PORT}/api/search?query=SLO-Loop" | jq -e 'length >= 3'; }
+check "Grafana has the 3 'SLO-Loop' dashboards (sidecar-provisioned: Service health, Incident view, Autoscaling experiment)" retry 150 dash
+check "recording rule slo:target_ratio (the dashboards' SLO line) is being evaluated" retry 150 has_series 'slo:target_ratio'
 
 bold "6/6  Server-side validation of every manifest (real CRD schemas)"
 OVERLAY=()

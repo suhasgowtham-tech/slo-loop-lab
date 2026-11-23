@@ -1,0 +1,10 @@
+name: demo_incident
+description: DEMO, not part of the experiment matrix (phase X only). One guided incident for the dashboards and a screen recording - steady load, the retriever slows down for 60 s (same fault as s5), the burn-rate alert fires, then it recovers.
+duration_s: 270
+warmup_s: 30
+load:
+  - {at: 0, rps_x: 1.0, mix: {short: 0.6, medium: 0.3, long: 0.1}}
+faults:
+  - {at: 40, until: 100, kind: retriever_fault, params: {latency_x_short_thr: 1.5}}
+incidents:
+  - {start: 40, end: 100, kind: retriever_latency, root_cause: retriever}

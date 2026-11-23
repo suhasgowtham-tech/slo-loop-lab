@@ -147,6 +147,15 @@ def gather(runs_dir: Path | None = None, now: float | None = None) -> dict:
     s["docker"] = running is not None
     s["node_running"] = bool(running) and node in (running or [])
     s["stray"] = gate.stray_containers(running, node) if running is not None else []
+    # None = unknown (asked nothing, or Docker did not answer); False = the node container does not exist at all (deleted, e.g.
+    # `make down` or a Docker reset): `make heal` cannot repair that, `make up` can. Only asked when the node is not running.
+    s["node_exists"] = None
+    if running is not None and not s["node_running"]:
+        try:
+            existing = gate.all_containers()
+        except Exception:  # noqa: BLE001 - best effort; the old advice (make heal) still applies
+            existing = None
+        s["node_exists"] = None if existing is None else node in existing
     s["deployments"] = {}
     s["autoscalers"] = []
     if s["node_running"]:
@@ -250,6 +259,11 @@ def decide(s: dict) -> dict:
         res["headline"] = "Docker is not reachable."
         res["steps"] = [("say", "Start Docker Desktop and wait until its bottom-left corner says 'Engine running' (1-3 minutes after a restart). Then run:"), ("cmd", "make status")]
         return res
+    if s.get("node_exists") is False:
+        res["headline"] = "No lab cluster exists on this Docker: the kind node container is gone (make down, a Docker reset, or a deleted container)."
+        res["steps"] = [("say", "Your results, config and calibration are plain files in this folder and are untouched. Build the cluster again "
+                                "(about 15-25 minutes, mostly downloads; the model file is kept if it is already there):"), ("cmd", "make up")]
+        return res
     deps = s.get("deployments", {})
     not_ready = (not s["node_running"]) or not deps or any(v is None or v[1] < max(v[0], 1) for v in deps.values())
     if not_ready:
@@ -335,7 +349,7 @@ def render(s: dict, d: dict | None = None) -> str:
     up = s.get("wsl_up_s")
     if up is not None:
         L.append(f"  Ubuntu (WSL) up since {_ist(now - up)} ({_ago(up)} ago)" + ("   <- RESTARTED recently" if up < RECENT_RESTART_S else ""))
-    L.append(f"  Docker: {'reachable' if s['docker'] else 'NOT reachable'}" + (f"; kind node {s['node']}: {'running' if s['node_running'] else 'NOT running'}" if s["docker"] else ""))
+    L.append(f"  Docker: {'reachable' if s['docker'] else 'NOT reachable'}" + (f"; kind node {s['node']}: {'running' if s['node_running'] else ('DOES NOT EXIST' if s.get('node_exists') is False else 'NOT running')}" if s["docker"] else ""))
     if s["node_running"]:
         parts = []
         for k, v in s["deployments"].items():

@@ -83,6 +83,44 @@ def test_docker_down_means_start_docker_then_status_again():
     assert "Docker is not reachable" in d["headline"] and _cmds(d) == ["make status"]
 
 
+def test_a_deleted_cluster_means_make_up_not_make_heal():
+    """Real case (Nov 2026): after `make down` the status said 'make heal && make verify', which cannot work: there is no node to heal."""
+    d = status.decide(_state(node_running=False, node_exists=False, deployments={}))
+    assert "No lab cluster exists" in d["headline"] and _cmds(d) == ["make up"]
+    assert not any("heal" in c for c in _cmds(d))
+    assert any("untouched" in t for k, t in d["steps"] if k == "say"), "must reassure that results and calibration are plain files"
+
+
+@pytest.mark.parametrize("exists", [None, True])
+def test_a_stopped_or_unknown_node_still_means_heal(exists):
+    d = status.decide(_state(node_running=False, node_exists=exists, deployments={}))
+    assert _cmds(d) == ["make heal && make verify"]
+
+
+def test_gather_tells_a_stopped_node_from_a_deleted_one(tmp_path, monkeypatch):
+    monkeypatch.setattr(status, "_lab_processes", lambda: [])
+    runs = tmp_path / "results" / "runs"
+    runs.mkdir(parents=True)
+    node = "slo-loop-control-plane"
+    monkeypatch.setattr(gate, "running_containers", lambda: [])
+    monkeypatch.setattr(gate, "all_containers", lambda: [node, "other"])        # exists, stopped
+    s = status.gather(runs, now=NOW)
+    assert s["node_running"] is False and s["node_exists"] is True
+    assert _cmds(status.decide({**_state(), **{k: s[k] for k in ("node_running", "node_exists")}, "deployments": {}})) == ["make heal && make verify"]
+    monkeypatch.setattr(gate, "all_containers", lambda: ["other"])               # gone
+    s = status.gather(runs, now=NOW)
+    assert s["node_exists"] is False and "kind node slo-loop-control-plane: DOES NOT EXIST" in status.render(s)
+    monkeypatch.setattr(gate, "all_containers", lambda: None)                    # Docker did not answer the second question: keep the old advice
+    assert status.gather(runs, now=NOW)["node_exists"] is None
+    def boom():
+        raise RuntimeError("docker exploded")
+    monkeypatch.setattr(gate, "all_containers", boom)
+    assert status.gather(runs, now=NOW)["node_exists"] is None                    # never crashes `make status`
+    monkeypatch.setattr(gate, "running_containers", lambda: [node])
+    monkeypatch.setattr(gate, "all_containers", lambda: pytest.fail("must not ask when the node is running"))
+    assert status.gather(runs, now=NOW)["node_exists"] is None
+
+
 @pytest.mark.parametrize("over", [
     {"node_running": False, "deployments": {}},
     {"deployments": {"llm": (1, 0), "gateway": (1, 1), "retriever": (1, 1)}},

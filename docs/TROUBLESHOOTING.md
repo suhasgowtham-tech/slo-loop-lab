@@ -47,7 +47,7 @@ Start with `make verify`: it prints which check failed. Then find the symptom be
 |---|---|
 | gateway/retriever targets not up in Prometheus | `kubectl -n slo-loop get servicemonitors`; Prometheus must select them (`serviceMonitorSelectorNilUsesHelmValues: false` is set). Check `kubectl -n slo-loop get endpoints`. |
 | `slo:burn_rate:*` series missing | The rule group evaluates every 5 s; wait 30 s after the first request. Check Prometheus → Status → Rules for errors. |
-| Grafana has no *SLO-Loop Lab* dashboard | The sidecar watches ConfigMaps labelled `grafana_dashboard=1` in all namespaces: `kubectl -n slo-loop get cm slo-loop-dashboard`; restart Grafana (`kubectl -n monitoring rollout restart deploy/kps-grafana`). Login admin / `slo-loop-lab`. |
+| Grafana is missing one or more of the three *SLO-Loop* dashboards, or panels draw no threshold lines | Run `make dashboards`: it says which dashboard or recording rule is missing. An older chart in the cluster is the usual cause: `make deploy && make verify`. The sidecar watches ConfigMaps labelled `grafana_dashboard=1` in all namespaces: `kubectl -n slo-loop get cm slo-loop-dashboards`; restart Grafana if needed (`kubectl -n monitoring rollout restart deploy/kps-grafana`). Login admin / `slo-loop-lab`. More in [DASHBOARDS.md](DASHBOARDS.md). |
 | `kubectl top` fails (CPU policy useless) | metrics-server not ready: `kubectl -n kube-system logs deploy/metrics-server`. Values enable `--kubelet-insecure-tls`, required on kind. |
 
 ## Autoscaling

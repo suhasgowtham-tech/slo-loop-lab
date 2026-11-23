@@ -22,6 +22,10 @@ RELEASE = "slo-loop"
 KUBE_CONTEXT = os.getenv("LAB_KUBE_CONTEXT", "kind-slo-loop")
 GATEWAY_URL = os.getenv("LAB_GATEWAY_URL", f"http://127.0.0.1:{os.getenv('GATEWAY_PORT', '8080')}")
 PROM_URL = os.getenv("LAB_PROM_URL", f"http://127.0.0.1:{os.getenv('PROM_PORT', '9090')}")
+GRAFANA_URL = os.getenv("LAB_GRAFANA_URL", f"http://127.0.0.1:{os.getenv('GRAFANA_PORT', '3000')}")
+# The lab's Grafana is bound to 127.0.0.1 only; this is the local-only login set in platform/values/kube-prometheus-stack.yaml.
+GRAFANA_USER = os.getenv("LAB_GRAFANA_USER", "admin")
+GRAFANA_PASSWORD = os.getenv("LAB_GRAFANA_PASSWORD", "slo-loop-lab")
 
 KEDA_POLICIES = ("cpu", "queue", "burn")
 STATIC_POLICIES = ("static1", "static2", "static3")

@@ -21,6 +21,12 @@ jobs:
           python -m venv .venv
           .venv/bin/python -m pip install -q --upgrade pip
           .venv/bin/python -m pip install -q -e '.[dev]'
+      - name: Install promtool (tests/test_dashboard_queries.py evaluates every dashboard query with Prometheus' own engine)
+        run: |
+          curl -sSfL -o /tmp/prometheus.tgz https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz
+          echo "e811827af26d822afb09a4f28314f61b618b12cff5369835a67f674d8b46f39a  /tmp/prometheus.tgz" | sha256sum -c -
+          tar -xzf /tmp/prometheus.tgz -C /tmp
+          echo "PROMTOOL=/tmp/prometheus-3.5.0.linux-amd64/promtool" >> "$GITHUB_ENV"
       - name: Lint (yamllint, shellcheck, helm lint + template for every policy)
         run: make lint
       - name: Tests (unit, chart, local end-to-end with a fake llama.cpp)

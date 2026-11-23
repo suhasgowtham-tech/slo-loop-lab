@@ -14,8 +14,8 @@ from pathlib import Path
 
 import httpx
 
+from . import annotate, k8s, loadgen, prom
 from . import config as cfg
-from . import k8s, loadgen, prom
 
 MAX_LAG_S = 0.25  # client scheduling lag above this invalidates a run (the load generator was starved)
 
@@ -72,12 +72,14 @@ class ReplicaPoller(threading.Thread):
 class FaultScheduler(threading.Thread):
     """Applies/reverts faults at absolute epochs; records what actually happened."""
 
-    def __init__(self, faults: list[dict], start_epoch: float, slo: dict):
+    def __init__(self, faults: list[dict], start_epoch: float, slo: dict, annotator: annotate.Annotator | None = None, label: str = ""):
         super().__init__(daemon=True)
         self.faults, self.start_epoch, self.slo = faults, start_epoch, slo
         self.events: list[dict] = []
         self._halt = threading.Event()
         self.errors: list[str] = []
+        self.annotator, self.label = annotator, label     # Grafana markers (lab/annotate.py): never blocks, never raises
+        self._open: dict[int, annotate.Marker | None] = {}
 
     def _sleep_until(self, epoch: float) -> bool:
         while not self._halt.is_set():
@@ -108,21 +110,41 @@ class FaultScheduler(threading.Thread):
         elif f["kind"] == "retriever_fault":
             httpx.delete(f"{cfg.GATEWAY_URL}/admin/retriever-fault", timeout=10)
 
+    def _describe(self, f: dict) -> str:
+        what = f.get("manifest") or ", ".join(f"{k}={v}" for k, v in sorted(f.get("params", {}).items()))
+        return f"Fault: {f['kind']}" + (f" ({what})" if what else "") + (f" - {self.label}" if self.label else "")
+
+    def _mark(self, action: str, f: dict, t: float) -> None:
+        """Grafana marker for a fault that was ACTUALLY applied/reverted, timed at the moment it happened. Fire-and-forget."""
+        if self.annotator is None:
+            return
+        if action == "apply":
+            self._open[id(f)] = self.annotator.start(self._describe(f), ["fault", f["kind"]], at=t)
+        else:
+            self.annotator.end(self._open.pop(id(f), None), at=t)
+
     def run(self) -> None:
         plan = []
         for f in self.faults:
             plan.append((self.start_epoch + float(f["at"]), "apply", f))
             plan.append((self.start_epoch + float(f["until"]), "revert", f))
-        for epoch, action, f in sorted(plan, key=lambda x: x[0]):
-            if not self._sleep_until(epoch):
-                return
-            t = time.time()
-            try:
-                (self._apply if action == "apply" else self._revert)(f)
-                self.events.append({"action": action, "kind": f["kind"], "manifest": f.get("manifest"), "t_rel": t - self.start_epoch, "ok": True})
-            except Exception as e:  # noqa: BLE001
-                self.errors.append(f"{action} {f['kind']}: {e}")
-                self.events.append({"action": action, "kind": f["kind"], "t_rel": t - self.start_epoch, "ok": False, "error": str(e)})
+        try:
+            for epoch, action, f in sorted(plan, key=lambda x: x[0]):
+                if not self._sleep_until(epoch):
+                    return
+                t = time.time()
+                try:
+                    (self._apply if action == "apply" else self._revert)(f)
+                    self.events.append({"action": action, "kind": f["kind"], "manifest": f.get("manifest"), "t_rel": t - self.start_epoch, "ok": True})
+                    self._mark(action, f, t)
+                except Exception as e:  # noqa: BLE001
+                    self.errors.append(f"{action} {f['kind']}: {e}")
+                    self.events.append({"action": action, "kind": f["kind"], "t_rel": t - self.start_epoch, "ok": False, "error": str(e)})
+        finally:
+            for m in list(self._open.values()):      # a run that is stopped early must not leave an open-ended marker
+                if self.annotator is not None:
+                    self.annotator.end(m)
+            self._open.clear()
 
     def stop(self) -> None:
         self._halt.set()
@@ -219,10 +241,14 @@ def run_one(
 
     start_epoch = time.time() + 3.0
     poller = ReplicaPoller(out / "replicas.csv")
-    scheduler = FaultScheduler(scenario["faults"], start_epoch, slo)
+    # Grafana markers (fault bands + a run band). Only for real runs against the cluster; a dashboard never touches the measurement.
+    annotator = annotate.Annotator(enabled=annotate.enabled_by_env() and prepare)
+    label = f"{scenario_name} / {policy} / r{rep}"
+    scheduler = FaultScheduler(scenario["faults"], start_epoch, slo, annotator, label)
     if prepare:
         poller.start()
     scheduler.start()
+    run_marker = annotator.start(f"Run {label}", ["run", scenario_name, policy], at=start_epoch)
     print(f"[run] {out.name}: measuring {duration:.0f}s")
     try:
         result = _run_load_sync(load_cfg, scenario["load"], duration, float(load_cfg["base_rps"]), seed, start_epoch)
@@ -232,7 +258,9 @@ def run_one(
         poller.stop()
         if prepare:
             cleanup_faults()
+        annotator.end(run_marker)
     end_epoch = time.time()
+    annotator.flush()
 
     if result.max_lag_s > MAX_LAG_S:
         reasons.append(f"load generator lag {result.max_lag_s:.3f}s > {MAX_LAG_S}s (client starved; close other apps)")

@@ -448,6 +448,66 @@ def _cmd_status(_a) -> int:
     return status.main()
 
 
+DEMO_SCENARIO = "demo_incident"
+
+
+def _cmd_dashboards(a) -> int:
+    from . import dashboards
+    return dashboards.main(open_browser=a.open)
+
+
+def _cmd_annotate(a) -> int:
+    from . import annotate
+    try:
+        i = annotate.post_now(a.text, a.tag)
+    except Exception as e:  # noqa: BLE001
+        print(f"[annotate] could not add the marker at {cfg.GRAFANA_URL}: {e}. Is the lab up? Run: make status", file=sys.stderr)
+        return 1
+    print(f"[annotate] marker {i} added ({a.text!r}, tags: slo-loop{''.join(', ' + t for t in a.tag)}). It shows on every dashboard time series that has the tag filter.")
+    return 0
+
+
+def demo_timeline(scenario: dict) -> str:
+    """What the person watching the dashboards should expect, derived from the scenario file (so it cannot drift from it)."""
+    f = scenario["faults"][0]
+    at, until, total = float(f["at"]), float(f["until"]), float(scenario["duration_s"])
+
+    def mmss(x: float) -> str:
+        return f"{int(x) // 60}:{int(x) % 60:02d}"
+    return "\n".join([
+        f"  +{mmss(0)}   the clock starts when the harness prints 'measuring {total:.0f}s' (before that it switches the policy and warms up, about 2 minutes)",
+        f"  +{mmss(at)}   FAULT: the retriever starts adding latency (red band on every time series, named on hover)",
+        f"  +{mmss(at + 30)}   requests that were delayed finish late: burn rate climbs; SLOBurnFast goes pending, then firing (yellow marker)",
+        f"  +{mmss(until)}   fault removed (the red band ends); the 30 s burn rate falls within about 30 s",
+        f"  +{mmss(total)}   run ends. The alert resolves a little later, once the 2-minute window has emptied (about 2 minutes after the fault stopped)",
+    ])
+
+
+def _cmd_demo(a) -> int:
+    """A guided 4.5-minute incident for the dashboards and the screen recording. Uses the same fault as scenario s5."""
+    from . import dashboards, runner
+    s = dashboards.gather()
+    good, nxt = dashboards.decide(s)
+    if not good:
+        print(dashboards.report(s))
+        print("\nNEXT: " + nxt)
+        return 1
+    sc = cfg.load_scenario(DEMO_SCENARIO)
+    ds = {d["uid"]: d for d in dashboards.catalog()}
+    print("DEMO: one fault, from alert to recovery. Policy: " + a.policy + ". Nothing here is part of the experiment results (phase X).\n")
+    print("1. Open these three tabs (time range: last 15 minutes, refresh 5 s):")
+    for uid, d in ds.items():
+        print(f"     {d['title']:36s} {dashboards.url(uid, s['grafana'])}")
+    print("2. Start your screen recording (Windows: Win+Alt+R, or Win+G).\n3. Expect this timeline:\n" + demo_timeline(sc) + "\n")
+    if not a.yes and sys.stdin.isatty():
+        input("Press Enter to start the run (Ctrl+C to cancel)... ")
+    runner.run_one("X", DEMO_SCENARIO, a.policy, 1, force=True)
+    print("\nDone. Take your screenshots now (Service health: budget tile + burn rate; Incident view: alert timeline + stage latency). "
+          "The alert is still resolving for about 2 more minutes: that is the recovery shot. "
+          f"Adding your own marker while recording: slo-lab annotate 'what you did'. Results of this run: results/runs/X/{DEMO_SCENARIO}__{a.policy}__r1")
+    return 0
+
+
 def _cmd_list(_a) -> int:
     for s in cfg.list_scenarios():
         sc = cfg.load_scenario(s)
@@ -541,6 +601,20 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--min-good", type=float, default=97.0, help="minimum good %% to pass (default 97)")
     s.add_argument("--history", action="store_true", help="only print every earlier gate result (no run)")
     s.set_defaults(fn=_cmd_gate)
+
+    s = sub.add_parser("dashboards", help="where are the three Grafana dashboards, are they loaded, does Prometheus have what they draw? Read-only, about 2 s")
+    s.add_argument("--open", action="store_true", help="also open the Service health dashboard in your browser")
+    s.set_defaults(fn=_cmd_dashboards)
+
+    s = sub.add_parser("annotate", help="add a marker (for example: deployed v2) to every Grafana time series")
+    s.add_argument("text")
+    s.add_argument("--tag", action="append", default=[], help="extra tag; repeatable")
+    s.set_defaults(fn=_cmd_annotate)
+
+    s = sub.add_parser("demo", help="guided 4.5-minute incident for the dashboards and a screen recording (one retriever fault, alert to recovery; phase X, not part of the results)")
+    s.add_argument("--policy", default="cpu", choices=cfg.ALL_POLICIES)
+    s.add_argument("--yes", action="store_true", help="do not wait for Enter")
+    s.set_defaults(fn=_cmd_demo)
 
     s = sub.add_parser("status", help="where does the lab stand (Docker, cluster, host logger, finished runs, last gate) and what is the ONE next command? Read-only, about 10 s")
     s.set_defaults(fn=_cmd_status)

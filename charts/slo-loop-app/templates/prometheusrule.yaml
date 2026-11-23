@@ -22,6 +22,38 @@ spec:
         {{- end }}
         - record: slo:good_ratio:class_120s
           expr: {{ "sum by (class) (rate(slo_good_requests_total[120s])) / (sum by (class) (rate(slo_requests_total[120s])) > 0)" | quote }}
+    # Constants the dashboards draw as lines (SLO target, TTFT thresholds, autoscaling trigger thresholds, LLM slots).
+    # They come from the same values the alerts and KEDA use, so a dashboard can never disagree with the alert or the
+    # autoscaler. All divisions are done by PromQL (Sprig's `div` is integer-only).
+    - name: slo-loop.dashboard
+      interval: {{ .Values.monitoring.ruleInterval }}
+      rules:
+        - record: slo:target_ratio
+          expr: {{ printf "vector(%v)" $t | quote }}
+        {{- range $c, $v := .Values.slo.ttft_s }}
+        - record: slo:ttft_threshold_seconds
+          expr: {{ printf "vector(%v)" $v | quote }}
+          labels:
+            class: {{ $c | quote }}
+        {{- end }}
+        - record: slo:llm_slots
+          expr: {{ printf "(sum(kube_deployment_status_replicas_ready{namespace=%q,deployment=\"llm\"}) * %v) or vector(0)" .Release.Namespace .Values.llm.parallel | quote }}
+        - record: slo:scaling_threshold
+          expr: {{ printf "vector(%v) / 100" .Values.autoscaling.cpu.utilization | quote }}
+          labels:
+            signal: "cpu"
+        - record: slo:scaling_threshold
+          expr: {{ printf "vector(%v)" .Values.autoscaling.queue.threshold | quote }}
+          labels:
+            signal: "queue"
+        - record: slo:scaling_threshold
+          expr: {{ printf "vector(%v)" .Values.autoscaling.burn.threshold | quote }}
+          labels:
+            signal: "burn"
+        - record: slo:autoscaling_policy_info
+          expr: "vector(1)"
+          labels:
+            policy: {{ .Values.autoscaling.policy | quote }}
     # DEMO alerts on time-compressed windows (the lab runs 10-minute scenarios). The measured detector
     # comparison is the offline replay in lab/analysis/detect.py, not these rules.
     - name: slo-loop.alerts

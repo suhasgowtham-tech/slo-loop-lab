@@ -210,7 +210,7 @@ def test_images_follow_the_app_build_script_and_digest_pin(renderer, tmp_path):
 def test_monitoring_can_be_disabled_for_clusters_without_the_operator(renderer, tmp_path):
     ds = docs(renderer, load_values(extra={"monitoring": {"enabled": False}}), tmp_path)
     assert not {"ServiceMonitor", "PrometheusRule"} & {d["kind"] for d in ds}
-    assert "slo-loop-dashboard" not in by_kind(ds, "ConfigMap")
+    assert "slo-loop-dashboards" not in by_kind(ds, "ConfigMap")
 
 
 # --------------------------------------------------------------------------- cluster exposure must agree with kind
@@ -253,11 +253,15 @@ def _promql_exprs(ds: list[dict]):
         for g in rule["spec"]["groups"]:
             for r in g["rules"]:
                 yield (r.get("record") or r["alert"]), r["expr"], "record" in r
-    dash = json.loads((CHART / "dashboards" / "slo-loop.json").read_text())
-    for p in dash.get("panels", []):
-        for t in p.get("targets", []):
-            if t.get("expr"):
-                yield f"panel:{p.get('title')}", t["expr"], False
+    for f in sorted((CHART / "dashboards").glob("*.json")):
+        dash = json.loads(f.read_text())
+        for p in dash.get("panels", []):
+            for t in p.get("targets", []):
+                if t.get("expr"):
+                    yield f"panel:{f.stem}:{p.get('title')}", t["expr"], False
+        for a in dash.get("annotations", {}).get("list", []):
+            if a.get("expr"):
+                yield f"annotation:{f.stem}:{a.get('name')}", a["expr"], False
 
 
 def test_every_promql_expression_parses(renderer, tmp_path):
@@ -265,13 +269,14 @@ def test_every_promql_expression_parses(renderer, tmp_path):
     ds = docs(renderer, load_values(), tmp_path)
     n = 0
     for name, expr, _ in _promql_exprs(ds):
-        e = re.sub(r"\$__rate_interval|\$__interval", "1m", expr)
+        e = re.sub(r"\$__range_s", "900", expr)                       # Grafana variables, in the order that avoids a prefix clash
+        e = re.sub(r"\$__rate_interval|\$__interval|\$__range", "1m", e)
         try:
             promql_parser.parse(e)
         except Exception as ex:  # noqa: BLE001
             pytest.fail(f"PromQL for {name!r} does not parse: {expr}\n{ex}")
         n += 1
-    assert n >= 15
+    assert n >= 60   # the generated dashboards carry several dozen queries; a drop means a dashboard silently lost its panels
 
 
 def test_burn_rate_divisor_is_computed_by_promql_not_by_integer_only_sprig(renderer, tmp_path):
@@ -291,10 +296,10 @@ def test_every_referenced_series_is_defined_somewhere(renderer, tmp_path):
     kube = re.compile(r"^(kube_|container_|node_|up$|ALERTS)")  # platform metrics (kube-state-metrics, cAdvisor, Prometheus)
     problems = []
     for name, expr, _ in _promql_exprs(ds):
-        for ident in re.findall(r"[a-zA-Z_:][a-zA-Z0-9_:]*", re.sub(r'"[^"]*"|\{[^}]*\}|\[[^\]]*\]', "", expr)):
+        for ident in re.findall(r"[a-zA-Z_:][a-zA-Z0-9_:]*", re.sub(r'"[^"]*"|\{[^}]*\}|\[[^\]]*\]|\$__[a-z_]+', "", expr)):
             if ident in {"sum", "rate", "by", "without", "or", "and", "unless", "vector", "max", "min", "avg", "clamp_min",
                          "histogram_quantile", "increase", "on", "ignoring", "bool", "time", "clamp_max", "count", "le", "class",
-                         "stage", "status", "deployment", "namespace", "pod", "container", "label_replace", "irate", "abs", "ceil"}:
+                         "stage", "status", "deployment", "namespace", "pod", "container", "label_replace", "irate", "abs", "ceil", "scalar", "avg_over_time"}:
                 continue
             if ident.startswith("slo:"):
                 if ident not in recorded:
@@ -340,9 +345,11 @@ def test_crd_objects_have_the_required_structure(renderer, tmp_path):
         assert sm["apiVersion"] == "monitoring.coreos.com/v1" and sm["spec"]["endpoints"]
     for g in by_kind(ds, "PrometheusRule")["slo-loop"]["spec"]["groups"]:
         assert g["name"] and g["rules"]
-    dash = by_kind(ds, "ConfigMap")["slo-loop-dashboard"]
+    dash = by_kind(ds, "ConfigMap")["slo-loop-dashboards"]
     assert dash["metadata"]["labels"]["grafana_dashboard"] == "1"
-    assert json.loads(dash["data"]["slo-loop.json"])["title"] == "SLO-Loop Lab"
+    titles = {k: json.loads(v)["title"] for k, v in dash["data"].items()}
+    assert titles == {"slo-loop-health.json": "SLO-Loop · Service health", "slo-loop-incident.json": "SLO-Loop · Incident view",
+                      "slo-loop-autoscaling.json": "SLO-Loop · Autoscaling experiment"}
 
 
 def test_chaos_manifests_target_pods_that_exist_and_stay_in_the_lab_namespace(renderer, tmp_path):

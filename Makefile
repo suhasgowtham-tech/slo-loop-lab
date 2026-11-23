@@ -6,7 +6,7 @@ REPS ?= 3
 
 .DEFAULT_GOAL := help
 .PHONY: help tools venv preflight cluster model images platform deploy up verify require-verified chaos-preflight pin-images heal recover diag set-base autoscaling simulate share gate health rerun-bad hostlog status \
-        latency profile capacity calibrate smoke phaseA phaseB analyze test lint down clean accept-flagged robust publish-results
+        latency profile capacity calibrate smoke phaseA phaseB analyze test lint down clean accept-flagged robust publish-results dashboards dashboards-build demo
 
 help: ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  \033[36m%-16s\033[0m %s\n",$$1,$$2}'
@@ -97,6 +97,15 @@ calibrate: require-verified ## derive SLO TTFT thresholds from a clean baseline 
 smoke: require-verified ## 90 s end-to-end run + analysis of one run (proves the pipeline)
 	$(LAB) run --phase X --scenario s0_baseline --policy static1 --rep 1 --duration 90 --force
 	$(LAB) summarize results/runs/X/s0_baseline__static1__r1
+
+dashboards: ## where are the 3 Grafana dashboards, are they loaded, does Prometheus have what they draw? (read-only, ~2 s)  make dashboards ARGS=--open opens the first one
+	$(LAB) dashboards $(ARGS)
+
+dashboards-build: ## regenerate the 3 dashboard JSON files from lab/dashgen.py (dashboards as code); tests fail if the committed JSON differs
+	$(PY) -m lab.dashgen
+
+demo: require-verified ## guided 4.5-minute incident for the dashboards and a screen recording: one retriever fault, alert to recovery (phase X, not part of the results)
+	$(LAB) demo $(ARGS)
 
 autoscaling: require-verified ## apply config/autoscaling.yaml (cpu/queue/burn thresholds) to the running lab and print the effective values
 	$(LAB) autoscaling

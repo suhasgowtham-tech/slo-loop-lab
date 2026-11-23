@@ -45,6 +45,18 @@ def running_containers() -> list[str] | None:
     return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
 
 
+def all_containers() -> list[str] | None:
+    """Names of ALL Docker containers, running or stopped, or None when Docker cannot be reached.
+    `make status` needs it to tell 'the kind node is stopped' (make heal) from 'the kind node does not exist' (make up)."""
+    try:
+        out = subprocess.run(["docker", "ps", "-a", "--format", "{{.Names}}"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
+
+
 def stray_containers(running: list[str] | None, node: str) -> list[str]:
     return sorted(n for n in (running or []) if n != node)
 
