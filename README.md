@@ -52,6 +52,8 @@ The design pre-registers what would **falsify** each claim. The honest outcome m
 Every push runs `make lint && make test` in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 Anything that needs the real cluster can only be checked on the lab itself, and `make verify` does that.
 
+To run all of it locally you need the Go toolchain (`sudo apt-get install -y golang-go`; the chart tests render the Helm templates with Go's real `text/template`) and `promtool` (the dashboard-query tests). Without Go, 45 tests are *skipped*, not failed: pytest shows them as `s`, and `pytest -rs` says why. CI installs both, so they always run there.
+
 | Checked automatically (CI, no cluster needed) | Checked on the lab itself (`make verify`) |
 |---|---|
 | 372 pytest tests: SLI math, burn-rate windows, detectors (incl. low-traffic window stretching), scoring, RCA baseline, load generator, the adaptive capacity probe, workload profiles, deployment guards, and a full local end-to-end run (real gateway + retriever processes, a **fake** llama.cpp, fault injection, detection, RCA), and every Grafana dashboard query evaluated by Prometheus' own engine (`promtool`) over synthetic data with known answers | That the **real** llama.cpp image accepts the flags and streams the format the gateway expects (`make verify` probes it) |
@@ -94,7 +96,7 @@ make up
 Chaos Mesh) → `deploy` → `verify`. **If `verify` is not fully green, stop and read
 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md); do not run experiments on an unverified lab.**
 
-Dashboards (localhost only): Grafana <http://127.0.0.1:3000> (admin / `slo-loop-lab`), Prometheus <http://127.0.0.1:9090>,
+Dashboards (localhost only): Grafana <http://127.0.0.1:3000> (admin / `slo-loop-lab`; use your `GRAFANA_PORT` if you moved it, `make dashboards` prints the exact links), Prometheus <http://127.0.0.1:9090>,
 gateway <http://127.0.0.1:8080>.
 
 ### Grafana dashboards

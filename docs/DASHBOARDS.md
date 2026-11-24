@@ -7,7 +7,7 @@ make dashboards          # where are they, are they loaded, does Prometheus have
 make demo                # one guided incident, alert to recovery, for a screen recording  (4.5 min + about 2 min setup)
 ```
 
-Grafana runs on `127.0.0.1:3000` only (login `admin` / `slo-loop-lab`, local lab password). Nothing is exposed to your network.
+Grafana runs on `127.0.0.1:3000` only, or on `$GRAFANA_PORT` if you moved it (for example 13000 when Windows already holds 3000); `make dashboards` prints the exact links. Login `admin` / `slo-loop-lab` (local lab password). Nothing is exposed to your network.
 
 ## The three dashboards
 
@@ -69,7 +69,7 @@ Screenshots worth taking: Service health (budget tile and burn rate during the f
 make dashboards-build    # regenerate charts/slo-loop-app/dashboards/*.json from lab/dashgen.py
 ```
 
-Edit `lab/dashgen.py`, never the JSON. `tests/test_dashboards.py` fails when the committed JSON differs from the generator, when a panel has no description, when two panels overlap, when a class changes colour between panels, or when a query hard-codes a threshold. `tests/test_dashboard_queries.py` evaluates every panel query with Prometheus' own engine (`promtool test rules`) over synthetic counters whose totals are known by construction, and fails if any query returns a different number than the one worked out by hand, or if a query has no such expectation. It needs `promtool` (downloaded in CI; skipped locally if absent).
+Edit `lab/dashgen.py`, never the JSON. `tests/test_dashboards.py` fails when the committed JSON differs from the generator, when a panel has no description, when two panels overlap, when a class changes colour between panels, or when a query hard-codes a threshold. `tests/test_dashboard_queries.py` evaluates every panel query with Prometheus' own engine (`promtool test rules`) over synthetic counters whose totals are known by construction, and fails if any query returns a different number than the one worked out by hand, or if a query has no such expectation. It needs the Go toolchain (the chart is rendered first) and `promtool`; CI installs both. Locally the tests are skipped, not failed, when either is missing: with no Go, `make test` reports 45 skipped (`pytest -rs` lists them).
 
 What is **not** covered by an automated test: how the panels *look* in Grafana. Layout, colours and legend wrapping are checked by eye.
 

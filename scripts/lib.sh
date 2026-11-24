@@ -41,7 +41,7 @@ require_docker() {
 require_cluster() {
   need kubectl
   if command -v docker >/dev/null 2>&1 && ! docker_up; then require_docker; fi
-  k get ns kube-system >/dev/null 2>&1 || die "cluster context '$KCTX' is not reachable (run: make cluster)"
+  k get ns kube-system >/dev/null 2>&1 || die "cluster context '$KCTX' is not reachable. The kind node is stopped (after a Windows/WSL/Docker restart) or gone. Run: make status   (it prints the exact fix: make heal if the node only stopped, make up if it is gone)"
 }
 
 diagnose() {

@@ -324,3 +324,11 @@ def test_accepted_runs_do_not_count_as_flagged_and_the_data_is_done(tmp_path, mo
     s = status.gather(tmp_path / "results" / "runs", now=NOW)
     assert s["accepted"]["B"] == 1 and len(s["flagged"]["B"]) == 1 and s["flagged"]["B"][0].startswith("s3_cpu_stress__burn__r1")   # INVALID stays flagged
     assert "kept after a re-run" in status.render(s)
+
+
+def test_an_unreachable_cluster_error_points_to_make_status_not_make_cluster():
+    """`make deploy` on a stopped kind node used to say `run: make cluster`, which is wrong advice for an existing lab."""
+    sh = (ROOT / "scripts" / "lib.sh").read_text()
+    line = next(ln for ln in sh.splitlines() if "is not reachable" in ln and "KCTX" in ln)
+    assert "make status" in line and "make heal" in line and "make up" in line
+    assert "run: make cluster" not in line
